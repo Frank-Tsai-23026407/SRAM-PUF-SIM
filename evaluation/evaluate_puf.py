@@ -9,15 +9,47 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.sram_based_puf import SRAM_PUF
 
 def hamming_distance(v1, v2):
-    """Calculates the Hamming distance between two vectors."""
+    """Calculates the Hamming distance between two vectors.
+
+    The Hamming distance is the number of positions at which the corresponding
+    symbols are different.
+
+    Args:
+        v1 (np.ndarray): The first vector.
+        v2 (np.ndarray): The second vector.
+
+    Returns:
+        int: The Hamming distance between the two vectors.
+    """
     return np.sum(v1 != v2)
 
 def calculate_uniformity(response):
-    """Calculates the uniformity of a PUF response."""
+    """Calculates the uniformity of a PUF response.
+
+    Uniformity measures the balance of 0s and 1s in the response. An ideal
+    PUF has a uniformity of 50%.
+
+    Args:
+        response (np.ndarray): The PUF response to evaluate.
+
+    Returns:
+        float: The uniformity of the response, as a percentage.
+    """
     return np.mean(response) * 100
 
 def calculate_uniqueness(pufs, num_pufs):
-    """Calculates the uniqueness between multiple PUF responses."""
+    """Calculates the uniqueness between multiple PUF responses.
+
+    Uniqueness (or inter-chip variation) measures how different the responses
+    from different PUF instances are. The ideal value is 50%.
+
+    Args:
+        pufs (list of SRAM_PUF): A list of SRAM_PUF objects.
+        num_pufs (int): The number of PUFs in the list.
+
+    Returns:
+        float: The average uniqueness between all pairs of PUFs, as a percentage.
+    """
     total_distance = 0
     num_comparisons = 0
     for i in range(num_pufs):
@@ -27,7 +59,20 @@ def calculate_uniqueness(pufs, num_pufs):
     return (total_distance / (num_comparisons * pufs[0].puf_response.size)) * 100
 
 def calculate_reliability(puf, aging_factor, num_samples=100):
-    """Calculates the reliability of a PUF response under aging."""
+    """Calculates the reliability of a PUF response under aging.
+
+    Reliability (or intra-chip variation) measures how stable a PUF's response
+    is under varying conditions. Ideal reliability is 100%.
+
+    Args:
+        puf (SRAM_PUF): The SRAM_PUF object to evaluate.
+        aging_factor (float): The aging factor to apply.
+        num_samples (int, optional): The number of noisy responses to generate.
+                                     Defaults to 100.
+
+    Returns:
+        float: The reliability of the PUF, as a percentage.
+    """
     original_response = puf.puf_response
     total_distance = 0
     for _ in range(num_samples):
@@ -38,6 +83,11 @@ def calculate_reliability(puf, aging_factor, num_samples=100):
     return (1 - avg_error_rate) * 100
 
 def main():
+    """Main function to run the PUF evaluation simulation.
+
+    This function initializes simulation parameters, runs the simulations for
+    reliability, uniformity, and uniqueness, and plots the results.
+    """
     # --- Simulation Parameters ---
     rows, cols = 8, 8
     num_pufs_uniqueness = 50

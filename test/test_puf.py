@@ -8,8 +8,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model.sram_based_puf import HammingECC
 
 def test_single_bit_correction():
-    """
-    Tests the HammingECC's ability to correct a single-bit error.
+    """Tests the HammingECC's ability to correct a single-bit error.
+
+    This test performs the following steps:
+    1. Generates random original data.
+    2. Creates helper data (a Hamming codeword) from the original data.
+    3. Introduces a single-bit error at a random position in the data.
+    4. Calls the ECC's `correct_data` method on the noisy data.
+    5. Verifies that the corrected data matches the original data.
     """
     data_len = 16
     ecc = HammingECC(data_len)

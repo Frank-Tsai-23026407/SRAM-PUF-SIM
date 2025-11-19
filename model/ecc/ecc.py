@@ -199,17 +199,47 @@ class HammingECC(ECC):
 class BCHECC(ECC):
     """BCH Error Correction Code implementation."""
 
-    def __init__(self, data_len, t=5):
+    def __init__(self, data_len, t=5, m=None):
         """Initializes the BCHECC class.
         Args:
             data_len (int): The length of the data string (number of bits).
             t (int): The error correction capability in bits.
+            m (int, optional): The Galois field parameter where n = 2^m - 1.
+                               If None, it will be calculated to accommodate data_len.
         """
-        m = 1
-        while (2**m)-1 < data_len:
-            m += 1
-        self.bch = bchlib.BCH(t=t, m=m)
+        if m is None:
+            # Calculate minimum m such that 2^m - 1 >= data_len
+            m = 1
+            while (2**m)-1 < data_len:
+                m += 1
+        
+        # Validate BCH parameters before initialization
+        try:
+            self.bch = bchlib.BCH(t=t, m=m)
+        except RuntimeError as e:
+            # Provide helpful error message about valid BCH parameters
+            n = (2**m) - 1
+            raise ValueError(
+                f"Invalid BCH parameters: m={m}, t={t}, n={n}. "
+                f"The bchlib library doesn't support this combination. "
+                f"Try adjusting 't' (error correction capability) or use a different data_len."
+            ) from e
+        
         self.data_len = data_len
+        self.m = m
+        self.t = t
+        
+        # Calculate maximum data bytes that bchlib can handle
+        # Based on bchlib limitations: data_bytes <= (n - ecc_bits) // 8
+        self.max_data_bytes = (self.bch.n - self.bch.ecc_bits) // 8
+        self.data_bytes = (data_len + 7) // 8  # Round up to bytes
+        
+        if self.data_bytes > self.max_data_bytes:
+            raise ValueError(
+                f"Data length {data_len} bits ({self.data_bytes} bytes) exceeds "
+                f"maximum supported by BCH(n={self.bch.n}, t={t}): "
+                f"{self.max_data_bytes} bytes ({self.max_data_bytes * 8} bits)"
+            )
 
     def generate_helper_data(self, data):
         """Generates helper data for the given data.
@@ -218,8 +248,18 @@ class BCHECC(ECC):
         Returns:
             bytes: The ECC data.
         """
+        # Ensure data length matches expected
+        if len(data) != self.data_len:
+            raise ValueError(f"Expected {self.data_len} bits, got {len(data)} bits")
+        
+        # Pack bits to bytes and encode
         data_bytes = np.packbits(data).tobytes()
-        ecc = self.bch.encode(data_bytes)
+        
+        # Pad to max_data_bytes if needed (bchlib may require this)
+        if len(data_bytes) < self.max_data_bytes:
+            data_bytes = data_bytes + b'\x00' * (self.max_data_bytes - len(data_bytes))
+        
+        ecc = self.bch.encode(data_bytes[:self.max_data_bytes])
         return ecc
 
     def correct_data(self, noisy_data, helper_data):
@@ -230,7 +270,19 @@ class BCHECC(ECC):
         Returns:
             np.ndarray: The corrected data.
         """
+        # Ensure data length matches expected
+        if len(noisy_data) != self.data_len:
+            raise ValueError(f"Expected {self.data_len} bits, got {len(noisy_data)} bits")
+        
+        # Pack bits to bytes
         data_bytes = bytearray(np.packbits(noisy_data).tobytes())
+        
+        # Pad to max_data_bytes if needed
+        if len(data_bytes) < self.max_data_bytes:
+            data_bytes.extend(b'\x00' * (self.max_data_bytes - len(data_bytes)))
+        
+        # Ensure we're only using max_data_bytes for decode
+        data_bytes = bytearray(data_bytes[:self.max_data_bytes])
         ecc_bytes = bytearray(helper_data)
 
         bitflips = self.bch.decode(data_bytes, ecc_bytes)
@@ -238,5 +290,5 @@ class BCHECC(ECC):
         if bitflips != -1:
             self.bch.correct(data_bytes, ecc_bytes)
 
-        corrected_bits = np.unpackbits(np.frombuffer(data_bytes, dtype=np.uint8))
+        corrected_bits = np.unpackbits(np.frombuffer(bytes(data_bytes), dtype=np.uint8))
         return corrected_bits[:self.data_len]

@@ -13,12 +13,15 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 ## Features
 
 - **SRAM Cell and Array Simulation:** Models individual SRAM cells and arrays, including the simulation of aging effects.
-- **Error Correction:** Implements a Hamming code to correct single-bit errors in PUF responses, improving reliability.
-- **PUF Quality Evaluation:** Includes a script to calculate and plot key PUF quality metrics:
+- **Error Correction:** Implements Hamming code and BCH code for error correction in PUF responses:
+    - **Hamming Code:** For single-bit error correction
+    - **BCH Code:** For multi-bit error correction with configurable error correction capability
+- **PUF Quality Evaluation:** Includes scripts to calculate and plot key PUF quality metrics:
     - **Uniformity:** The balance of 0s and 1s in a PUF response.
     - **Uniqueness:** The difference between responses from multiple PUF instances.
     - **Reliability:** The stability of a PUF's response over time (simulated by an aging factor).
-- **Testing:** Comes with a unit test to verify the correctness of the Hamming code implementation.
+- **BCH Robustness Testing:** Compares different BCH configurations under various aging conditions
+- **Testing:** Comes with unit tests to verify the correctness of error correction implementations.
 
 ## Getting Started
 
@@ -27,6 +30,7 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 - Python 3.x
 - NumPy
 - Matplotlib
+- bchlib (for BCH error correction)
 
 ### Installation
 
@@ -44,8 +48,25 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 
 3.  **Install the required libraries:**
     ```bash
-    pip install numpy matplotlib
+    pip install -r requirements.txt
     ```
+
+### Important Notes on BCH Error Correction
+
+This project uses the `bchlib` library for BCH error correction. Please note:
+
+- **Library Limitations:** The `bchlib` library has specific constraints:
+  - Does not support `m=4` (BCH codes with n=15 are not available)
+  - Only works with byte-aligned data (data length must be a multiple of 8 bits)
+  - Maximum data length is limited by `(n - ecc_bits) // 8` bytes
+  
+- **Actual BCH Configurations:** Due to these limitations, the actual usable data lengths differ from theoretical BCH code parameters:
+  - BCH(31, 16, t=2) - supports 16 bits (not 21 bits theoretically)
+  - BCH(31, 16, t=3) - supports 16 bits
+  - BCH(63, 48, t=2) - supports 48 bits (not 51 bits)
+  - BCH(63, 40, t=3) - supports 40 bits (not 45 bits)
+  - BCH(127, 104, t=3) - supports 104 bits (not 106 bits)
+  - BCH(127, 88, t=5) - supports 88 bits (not 92 bits)
 
 ## Usage
 
@@ -58,6 +79,16 @@ python evaluation/evaluate_puf.py
 ```
 
 This will run a series of simulations with varying aging factors and save a plot named `puf_quality_metrics.png` in the `evaluation` directory.
+
+### Running BCH Robustness Verification
+
+To test and compare different BCH error correction configurations:
+
+```bash
+python evaluation/verify_bch_robustness.py
+```
+
+This will test multiple BCH configurations (with different error correction capabilities) under various aging factors and generate a comparison plot saved as `bch_robustness_comparison.png`.
 
 ### Running the Test
 
@@ -74,13 +105,17 @@ If the test passes, you will see the message "ECC test passed!".
 ```
 .
 ├── model/
-│   ├── cell.py           # SRAMCell class
-│   ├── sram.py           # SRAM class (array of cells)
-│   └── sram_based_puf.py # SRAM_PUF and HammingECC classes
+│   ├── cell.py              # SRAMCell class
+│   ├── sram.py              # SRAM class (array of cells)
+│   ├── sram_based_puf.py    # SRAM_PUF class
+│   └── ecc/
+│       └── ecc.py           # HammingECC and BCHECC classes
 ├── evaluation/
-│   ├── evaluate_puf.py   # Script to evaluate PUF quality
-│   └── puf_quality_metrics.png # Example output plot
+│   ├── evaluate_puf.py      # Script to evaluate PUF quality
+│   ├── verify_bch_robustness.py  # Script to test BCH configurations
+│   └── puf_quality_metrics.png   # Example output plot
 ├── test/
-│   └── test_puf.py       # Unit test for the Hamming ECC
-└── README.md             # This file
+│   └── test_puf.py          # Unit test for the Hamming ECC
+├── requirements.txt         # Python dependencies
+└── README.md                # This file
 ```

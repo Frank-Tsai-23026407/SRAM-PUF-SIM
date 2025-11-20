@@ -16,6 +16,11 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    - name: Test with pytest
+    - name: Run tests
       run: |
-        python test/*.py
+        python test/test_cell.py
+        python test/test_sram.py
+        python test/test_ecc.py
+        python test/test_puf_integration.py
+        python test/test_stability.py
+        python test/test_unstable_cells.py

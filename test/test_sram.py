@@ -60,7 +60,8 @@ class TestSRAMArray(unittest.TestCase):
             mock_power_up.assert_called_with(
                 temperature=50,
                 voltage_ratio=1.1,
-                anti_aging=True
+                anti_aging=True,
+                storage_pattern='static'
             )
 
     def test_large_array_init(self):

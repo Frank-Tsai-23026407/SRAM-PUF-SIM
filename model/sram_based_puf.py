@@ -24,7 +24,7 @@ class SRAM_PUF:
                            response required for ECC.
     """
 
-    def __init__(self, num_cells, ecc=None, pre_test_rounds=0):
+    def __init__(self, num_cells, ecc=None, pre_test_rounds=0, stability_param=None):
         """Initializes the SRAM_PUF.
 
         Args:
@@ -34,8 +34,9 @@ class SRAM_PUF:
             pre_test_rounds (int, optional): The number of rounds to perform a
                                              pre-test to identify unstable cells.
                                              Defaults to 0 (disabled).
+            stability_param (float, optional): Global stability parameter for all cells.
         """
-        self.sram = SRAMArray(num_cells)
+        self.sram = SRAMArray(num_cells, stability_param=stability_param)
         self.stable_mask = None
 
         # Perform pre-test if requested
@@ -72,7 +73,7 @@ class SRAM_PUF:
         else:
             self.helper_data = None
 
-    def get_response(self, temperature=25, voltage_ratio=1.0, anti_aging=False):
+    def get_response(self, temperature=25, voltage_ratio=1.0, anti_aging=False, storage_pattern='static'):
         """
         Generates a PUF response, simulating environmental effects and applying ECC.
 
@@ -83,6 +84,7 @@ class SRAM_PUF:
             temperature (float): The ambient temperature in Celsius.
             voltage_ratio (float): The supply voltage ratio relative to nominal.
             anti_aging (bool): Whether to apply an anti-aging strategy.
+            storage_pattern (str): Storage strategy - 'static', 'random', or 'optimized'.
 
         Returns:
             np.ndarray: The PUF response as a 1D NumPy array.
@@ -91,7 +93,8 @@ class SRAM_PUF:
         noisy_puf = self.sram.power_up_array(
             temperature=temperature,
             voltage_ratio=voltage_ratio,
-            anti_aging=anti_aging
+            anti_aging=anti_aging,
+            storage_pattern=storage_pattern
         )
 
         # Apply mask if it exists

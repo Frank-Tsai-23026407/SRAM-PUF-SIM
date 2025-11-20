@@ -17,17 +17,18 @@ class SRAMArray:
         num_cells (int): The total number of cells in the array.
         cells (list[SRAMCell]): A list of SRAMCell objects.
     """
-    def __init__(self, num_cells):
+    def __init__(self, num_cells, stability_param=None):
         """Initializes the SRAM array.
 
         Args:
             num_cells (int): The number of cells to include in the array.
+            stability_param (float, optional): Global stability parameter for all cells.
         """
         self.num_cells = num_cells
-        # Initialize all cells with default (random) properties
-        self.cells = [SRAMCell() for _ in range(num_cells)]
+        # Initialize all cells with default (random) properties or specific stability
+        self.cells = [SRAMCell(stability_param=stability_param) for _ in range(num_cells)]
 
-    def power_up_array(self, temperature=25, voltage_ratio=1.0, anti_aging=False):
+    def power_up_array(self, temperature=25, voltage_ratio=1.0, anti_aging=False, storage_pattern='static'):
         """
         Simulates the power-up of the entire SRAM array, considering environmental
         and aging factors.
@@ -39,6 +40,7 @@ class SRAMArray:
             temperature (float): The ambient temperature in Celsius.
             voltage_ratio (float): The supply voltage ratio relative to nominal.
             anti_aging (bool): Whether to apply an anti-aging strategy.
+            storage_pattern (str): Storage strategy - 'static', 'random', or 'optimized'.
 
         Returns:
             np.ndarray: A 1D NumPy array containing the startup values (0 or 1)
@@ -48,7 +50,8 @@ class SRAMArray:
             cell.power_up(
                 temperature=temperature,
                 voltage_ratio=voltage_ratio,
-                anti_aging=anti_aging
+                anti_aging=anti_aging,
+                storage_pattern=storage_pattern
             )
         return self.read()
 

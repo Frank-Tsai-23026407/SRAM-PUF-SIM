@@ -17,7 +17,7 @@ class TestUnstableCells(unittest.TestCase):
         burn_in_test_rounds = 20
 
         # Initialize PUF with burn-in-test
-        puf = SRAM_PUF(num_cells=num_cells, burn_in_test_rounds=burn_in_test_rounds)
+        puf = SRAM_PUF(num_cells=num_cells, burn_in_rounds=burn_in_test_rounds)
 
         # Check if mask is created
         self.assertIsNotNone(puf.stable_mask)

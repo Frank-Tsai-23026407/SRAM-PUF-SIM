@@ -1,48 +1,62 @@
-from model.cell import SRAMCell
+import sys
+import os
 import numpy as np
 
-class SRAM:
-    """A model of a Static Random-Access Memory (SRAM) array.
+# Add project root to path to allow absolute imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-    This class simulates a 2D array of SRAM cells, providing methods to
-    power up the entire array and read the resulting values.
+from model.cell import SRAMCell
+
+class SRAMArray:
+    """A model of a 1D array of Static Random-Access Memory (SRAM) cells.
+
+    This class simulates a collection of SRAM cells, providing a high-level
+    interface to power up the entire array and read the resulting startup values.
 
     Attributes:
-        rows (int): The number of rows in the SRAM array.
-        cols (int): The number of columns in the SRAM array.
-        cells (np.ndarray): A 2D NumPy array of SRAMCell objects.
+        num_cells (int): The total number of cells in the array.
+        cells (list[SRAMCell]): A list of SRAMCell objects.
     """
-    def __init__(self, rows, cols):
+    def __init__(self, num_cells):
         """Initializes the SRAM array.
 
         Args:
-            rows (int): The number of rows in the SRAM array.
-            cols (int): The number of columns in the SRAM array.
+            num_cells (int): The number of cells to include in the array.
         """
-        self.rows = rows
-        self.cols = cols
-        self.cells = np.array([[SRAMCell() for _ in range(cols)] for _ in range(rows)])
+        self.num_cells = num_cells
+        # Initialize all cells with default (random) properties
+        self.cells = [SRAMCell() for _ in range(num_cells)]
 
-    def power_up(self, aging_factor=0.01):
-        """Simulates the power-up of the entire SRAM array.
+    def power_up_array(self, temperature=25, voltage_ratio=1.0, anti_aging=False):
+        """
+        Simulates the power-up of the entire SRAM array, considering environmental
+        and aging factors.
 
-        This method iterates through each cell in the array and calls its
-        `power_up` method, applying the specified aging factor.
+        This method iterates through each cell and calls its `power_up` method,
+        passing the specified simulation parameters.
 
         Args:
-            aging_factor (float): The probability (from 0.0 to 1.0) of a bit
-                                  flip occurring for each cell during
-                                  power-up. Defaults to 0.01.
-        """
-        for i in range(self.rows):
-            for j in range(self.cols):
-                self.cells[i, j].power_up(aging_factor)
-
-    def read(self):
-        """Reads the values of all cells in the SRAM array.
+            temperature (float): The ambient temperature in Celsius.
+            voltage_ratio (float): The supply voltage ratio relative to nominal.
+            anti_aging (bool): Whether to apply an anti-aging strategy.
 
         Returns:
-            np.ndarray: A 2D NumPy array containing the current values (0 or 1)
-                        of all cells in the SRAM array.
+            np.ndarray: A 1D NumPy array containing the startup values (0 or 1)
+                        of all cells in the array.
         """
-        return np.array([[self.cells[i, j].read() for j in range(self.cols)] for i in range(self.rows)])
+        for cell in self.cells:
+            cell.power_up(
+                temperature=temperature,
+                voltage_ratio=voltage_ratio,
+                anti_aging=anti_aging
+            )
+        return self.read()
+
+    def read(self):
+        """Reads the current values of all cells in the SRAM array.
+
+        Returns:
+            np.ndarray: A 1D NumPy array containing the current values (0 or 1)
+                        of all cells.
+        """
+        return np.array([cell.read() for cell in self.cells])

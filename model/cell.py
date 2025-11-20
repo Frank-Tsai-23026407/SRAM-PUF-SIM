@@ -85,26 +85,26 @@ class SRAMCell:
             recoverable_aging = 0.07 * np.sqrt(self.age / 1000)
             effective_stability = max(0.0, self.stability - permanent_aging - recoverable_aging)
 
-        # Calculate temperature effect on noise
-        # Higher temperature increases thermal noise and accelerates aging
-        temp_factor = 1.0 + abs(temperature - 25) / 100.0
-
-        # Calculate voltage effect on noise and aging
-        # Higher voltage increases electric field stress and accelerates NBTI
-        voltage_factor = 1.0 + abs(voltage_ratio - 1.0) * 2.0
-
-        # Calculate bit-flip probability during power-up
-        # Stability = 0: 50% chance of flipping (completely unstable)
-        # Stability = 1: ~0% chance of flipping (very stable)
+        # Environmental factors degrade the EFFECTIVE stability
+        # Higher temperature reduces noise margin (reduces effective Vth difference)
+        temp_degradation = abs(temperature - 25) / 500.0  # Normalized impact
+        
+        # Higher voltage stress degrades oxide, reducing stability
+        voltage_degradation = abs(voltage_ratio - 1.0) * 0.3
+        
+        # Calculate final effective stability considering all factors
+        effective_stability = effective_stability - temp_degradation - voltage_degradation
+        effective_stability = np.clip(effective_stability, 0.0, 1.0)
+        
+        # Now calculate flip probability
+        # This naturally caps at 50% when effective_stability = 0
         base_flip_prob = (1 - effective_stability) * 0.5
-        flip_prob = base_flip_prob * temp_factor * voltage_factor
-
-        # Determine power-up value based on flip probability
+        flip_prob = base_flip_prob  # No additional multiplication!
+        
+        # Determine power-up value
         if np.random.rand() < flip_prob:
-            # Bit flip occurs: cell power-up to opposite of preferred value
             self.value = 1 - self.initial_value
         else:
-            # No flip: cell power-up to its preferred value
             self.value = self.initial_value
 
         # Increment age counter (number of power-up cycles experienced)

@@ -10,73 +10,49 @@ from model.ecc.ecc import HammingECC
 
 
 class SRAM_PUF:
-    """A model of an SRAM-based PUF with optional Error Correction Code (ECC).
-
-    This class simulates an SRAM-based Physical Unclonable Function (PUF),
-    which generates a unique, device-specific response based on the startup
-    behavior of an SRAM array. It can be configured with ECC to improve
-    the reliability of the response.
-
-    Attributes:
-        sram (SRAMArray): The SRAM array used for the PUF.
-        ecc (ECC, optional): The ECC object used for error correction.
-        helper_data (any): The helper data generated from the initial PUF
-                           response required for ECC. None if ECC is not used.
-        stable_mask (np.ndarray, optional): A boolean mask indicating which cells
-                                            are considered stable if pre-testing is performed.
-    """
-
-    def __init__(self, num_cells, ecc=None, pre_test_rounds=0, stability_param=None):
-        """Initializes the SRAM_PUF.
-
+    def __init__(self, num_cells, ecc=None, burn_in_rounds=0, 
+                 burn_in_temperature=125, burn_in_voltage_ratio=1.2, 
+                 stability_param=None):
+        """
         Args:
-            num_cells (int): The number of cells in the SRAM array.
-            ecc (ECC, optional): The ECC implementation to use. If None,
-                                 no ECC is used. Defaults to None.
-            pre_test_rounds (int, optional): The number of rounds to perform a
-                                             pre-test to identify unstable cells.
-                                             Defaults to 0 (disabled).
-            stability_param (float, optional): Global stability parameter for all cells.
-                                               If None, uses default random distribution.
+            burn_in_rounds (int): Number of rounds for burn in phase to identify 
+                                   stable cells. 0 = disabled.
+            burn_in_temperature (float): Temperature in Celsius for burn in 
+                                          (default: 125°C for burn-in)
+            burn_in_voltage_ratio (float): Voltage ratio for burn in 
+                                            (default: 1.2 = 20% overvoltage)
         """
         self.sram = SRAMArray(num_cells, stability_param=stability_param)
         self.stable_mask = None
 
-        # Perform pre-test if requested
-        if pre_test_rounds > 0:
-            # Collect responses from multiple power-up cycles
+        # burn in phase (also known as characterization or burn-in testing)
+        if burn_in_rounds > 0:
             responses = []
-            for _ in range(pre_test_rounds):
-                responses.append(self.sram.power_up_array(temperature=25, voltage_ratio=1.0))
+            for _ in range(burn_in_rounds):
+                # Use elevated temperature and voltage for accelerated aging
+                responses.append(
+                    self.sram.power_up_array(
+                        temperature=burn_in_temperature,
+                        voltage_ratio=burn_in_voltage_ratio
+                    )
+                )
 
             responses = np.array(responses)
-            # A cell is stable if it has the same value in all rounds
-            # We check if the variance of each column is 0, or simply if all values are equal to the first row
-            # If sum of a column is 0 (all 0s) or pre_test_rounds (all 1s), it is stable.
             col_sums = np.sum(responses, axis=0)
-            self.stable_mask = (col_sums == 0) | (col_sums == pre_test_rounds)
+            self.stable_mask = (col_sums == 0) | (col_sums == burn_in_rounds)
 
-            # Depending on the implementation, we might want to ensure we have at least some stable cells
-            if np.sum(self.stable_mask) == 0:
-                # Fallback: if all are unstable (unlikely), use all cells or raise warning
-                # For now, we'll leave it empty, which might cause issues downstream but is correct behavior
-                pass
-
-        # Generate the initial, "golden" response at nominal conditions
+        # Enrollment phase: generate golden response at nominal conditions
         puf_response = self.sram.power_up_array(temperature=25, voltage_ratio=1.0)
 
-        # Apply mask if it exists
         if self.stable_mask is not None:
             puf_response = puf_response[self.stable_mask]
 
         self.ecc = ecc
-
         if self.ecc:
             self.helper_data = self.ecc.generate_helper_data(puf_response)
         else:
             self.helper_data = None
 
-        # Store the initial golden response for reference (optional, but useful for debug/tests)
         self.puf_response = puf_response
 
     def get_response(self, temperature=25, voltage_ratio=1.0, anti_aging=False, storage_pattern='static'):

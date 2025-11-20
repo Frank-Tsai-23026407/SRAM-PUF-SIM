@@ -1,6 +1,6 @@
 """
-Test script to verify the effectiveness of pre-test functionality.
-This script compares PUF performance with and without pre-test.
+Test script to verify the effectiveness of burn-in-test functionality.
+This script compares PUF performance with and without burn-in-test.
 """
 
 import sys
@@ -22,13 +22,13 @@ def calculate_bit_error_rate(original, noisy):
 
 
 def test_without_pretest(num_cells=1024, test_rounds=50):
-    """Test PUF without pre-test."""
+    """Test PUF without burn-in-test."""
     print("=" * 60)
-    print("Testing WITHOUT Pre-test")
+    print("Testing WITHOUT burn-in-test")
     print("=" * 60)
     
-    # Create PUF without pre-test
-    puf = SRAM_PUF(num_cells=num_cells, ecc=None, pre_test_rounds=0)
+    # Create PUF without burn-in-test
+    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_test_rounds=0)
     
     print(f"Total cells: {num_cells}")
     print(f"Stable mask: {puf.stable_mask}")
@@ -75,14 +75,14 @@ def test_without_pretest(num_cells=1024, test_rounds=50):
     }
 
 
-def test_with_pretest(num_cells=1024, pre_test_rounds=10, test_rounds=50):
-    """Test PUF with pre-test."""
+def test_with_pretest(num_cells=1024, burn_in_test_rounds=10, test_rounds=50):
+    """Test PUF with burn-in-test."""
     print("\n" + "=" * 60)
-    print(f"Testing WITH Pre-test ({pre_test_rounds} rounds)")
+    print(f"Testing WITH burn-in-test ({burn_in_test_rounds} rounds)")
     print("=" * 60)
     
-    # Create PUF with pre-test
-    puf = SRAM_PUF(num_cells=num_cells, ecc=None, pre_test_rounds=pre_test_rounds)
+    # Create PUF with burn-in-test
+    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_test_rounds=burn_in_test_rounds)
     
     stable_count = np.sum(puf.stable_mask) if puf.stable_mask is not None else num_cells
     unstable_count = num_cells - stable_count
@@ -136,36 +136,36 @@ def test_with_pretest(num_cells=1024, pre_test_rounds=10, test_rounds=50):
 def compare_results(without_pretest, with_pretest):
     """Compare and print the results."""
     print("\n" + "=" * 60)
-    print("COMPARISON: With vs Without Pre-test")
+    print("COMPARISON: With vs Without burn-in-test")
     print("=" * 60)
     
     print(f"\nResponse Length:")
-    print(f"  Without Pre-test: {without_pretest['response_length']} bits")
-    print(f"  With Pre-test: {with_pretest['response_length']} bits")
+    print(f"  Without burn-in-test: {without_pretest['response_length']} bits")
+    print(f"  With burn-in-test: {with_pretest['response_length']} bits")
     print(f"  Reduction: {without_pretest['response_length'] - with_pretest['response_length']} bits "
           f"({(1 - with_pretest['response_length']/without_pretest['response_length'])*100:.2f}%)")
     
     print(f"\nAverage BER (Nominal Conditions):")
-    print(f"  Without Pre-test: {without_pretest['avg_ber_nominal']:.6f} ({without_pretest['avg_ber_nominal']*100:.4f}%)")
-    print(f"  With Pre-test: {with_pretest['avg_ber_nominal']:.6f} ({with_pretest['avg_ber_nominal']*100:.4f}%)")
+    print(f"  Without burn-in-test: {without_pretest['avg_ber_nominal']:.6f} ({without_pretest['avg_ber_nominal']*100:.4f}%)")
+    print(f"  With burn-in-test: {with_pretest['avg_ber_nominal']:.6f} ({with_pretest['avg_ber_nominal']*100:.4f}%)")
     
     if without_pretest['avg_ber_nominal'] > 0:
         improvement = (without_pretest['avg_ber_nominal'] - with_pretest['avg_ber_nominal']) / without_pretest['avg_ber_nominal'] * 100
         print(f"  Improvement: {improvement:.2f}%")
     
     print(f"\nMax BER (Nominal Conditions):")
-    print(f"  Without Pre-test: {without_pretest['max_ber_nominal']:.6f}")
-    print(f"  With Pre-test: {with_pretest['max_ber_nominal']:.6f}")
+    print(f"  Without burn-in-test: {without_pretest['max_ber_nominal']:.6f}")
+    print(f"  With burn-in-test: {with_pretest['max_ber_nominal']:.6f}")
     
     print(f"\nStd BER (Nominal Conditions):")
-    print(f"  Without Pre-test: {without_pretest['std_ber_nominal']:.6f}")
-    print(f"  With Pre-test: {with_pretest['std_ber_nominal']:.6f}")
+    print(f"  Without burn-in-test: {without_pretest['std_ber_nominal']:.6f}")
+    print(f"  With burn-in-test: {with_pretest['std_ber_nominal']:.6f}")
     
     print(f"\nTemperature Robustness (Average BER across temps):")
     avg_temp_without = np.mean(without_pretest['temp_errors'])
     avg_temp_with = np.mean(with_pretest['temp_errors'])
-    print(f"  Without Pre-test: {avg_temp_without:.6f} ({avg_temp_without*100:.4f}%)")
-    print(f"  With Pre-test: {avg_temp_with:.6f} ({avg_temp_with*100:.4f}%)")
+    print(f"  Without burn-in-test: {avg_temp_without:.6f} ({avg_temp_without*100:.4f}%)")
+    print(f"  With burn-in-test: {avg_temp_with:.6f} ({avg_temp_with*100:.4f}%)")
     
     if avg_temp_without > 0:
         temp_improvement = (avg_temp_without - avg_temp_with) / avg_temp_without * 100
@@ -176,13 +176,13 @@ def compare_results(without_pretest, with_pretest):
     print("=" * 60)
     
     if with_pretest['avg_ber_nominal'] < without_pretest['avg_ber_nominal']:
-        print("✓ Pre-test is EFFECTIVE: BER decreased")
-        print(f"  The pre-test reduced errors by filtering out unstable cells.")
+        print("✓ burn-in-test is EFFECTIVE: BER decreased")
+        print(f"  The burn-in-test reduced errors by filtering out unstable cells.")
     elif with_pretest['avg_ber_nominal'] == without_pretest['avg_ber_nominal']:
-        print("≈ Pre-test has NEUTRAL effect: BER unchanged")
-        print(f"  The pre-test didn't improve reliability, possibly because cells are naturally stable.")
+        print("≈ burn-in-test has NEUTRAL effect: BER unchanged")
+        print(f"  The burn-in-test didn't improve reliability, possibly because cells are naturally stable.")
     else:
-        print("✗ Pre-test is INEFFECTIVE: BER increased")
+        print("✗ burn-in-test is INEFFECTIVE: BER increased")
         print(f"  This is unexpected and may indicate an implementation issue.")
     
     print(f"\nTrade-off: You lose {without_pretest['response_length'] - with_pretest['response_length']} bits "
@@ -192,7 +192,7 @@ def compare_results(without_pretest, with_pretest):
 def main():
     """Main test function."""
     print("=" * 60)
-    print("PUF PRE-TEST EFFECTIVENESS EVALUATION")
+    print("PUF burn-in-test EFFECTIVENESS EVALUATION")
     print("=" * 60)
     print()
     
@@ -201,18 +201,18 @@ def main():
     
     # Test parameters
     num_cells = 1024
-    pre_test_rounds = 10
+    burn_in_test_rounds = 10
     test_rounds = 50
     
     print(f"Test Configuration:")
     print(f"  Number of cells: {num_cells}")
-    print(f"  Pre-test rounds: {pre_test_rounds}")
+    print(f"  burn-in-test rounds: {burn_in_test_rounds}")
     print(f"  Reliability test rounds: {test_rounds}")
     print()
     
     # Run tests
     results_without = test_without_pretest(num_cells=num_cells, test_rounds=test_rounds)
-    results_with = test_with_pretest(num_cells=num_cells, pre_test_rounds=pre_test_rounds, test_rounds=test_rounds)
+    results_with = test_with_pretest(num_cells=num_cells, burn_in_test_rounds=burn_in_test_rounds, test_rounds=test_rounds)
     
     # Compare results
     compare_results(results_without, results_with)

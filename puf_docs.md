@@ -18,8 +18,8 @@ The SRAM-PUF simulator includes a feature to identify and mask unstable cells be
 
 ### How it Works
 
-1.  **Pre-Test:** When `pre_test_rounds` is set to a value greater than 0 in the `SRAM_PUF` constructor, the simulator performs a pre-test phase.
-2.  **Identification:** The SRAM array is powered up `pre_test_rounds` times at nominal conditions. Cells that flip values during these rounds (i.e., are not consistently 0 or 1) are identified as unstable.
+1.  **Burn-In-Test:** When `burn_in_test_rounds` is set to a value greater than 0 in the `SRAM_PUF` constructor, the simulator performs a burn-in-test phase.
+2.  **Identification:** The SRAM array is powered up `burn_in_test_rounds` times at nominal conditions. Cells that flip values during these rounds (i.e., are not consistently 0 or 1) are identified as unstable.
 3.  **Masking:** Unstable cells are masked out from the PUF response.
 4.  **Result:** The `get_response()` method returns a shorter array containing only the bits from stable cells.
 
@@ -48,11 +48,11 @@ puf_bch = SRAM_PUF(num_cells=4096, ecc=BCHECC(data_len=4096, t=5))
 
 ### Using Unstable Cell Masking
 
-To enable unstable cell masking, set `pre_test_rounds` to a positive integer:
+To enable unstable cell masking, set `burn_in_test_rounds` to a positive integer:
 
 ```python
-# Enable pre-test with 20 rounds
-puf = SRAM_PUF(num_cells=4096, pre_test_rounds=20)
+# Enable burn-in-test with 20 rounds
+puf = SRAM_PUF(num_cells=4096, burn_in_test_rounds=20)
 
 # The response will contain only stable bits
 response = puf.get_response()

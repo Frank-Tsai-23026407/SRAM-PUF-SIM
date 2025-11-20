@@ -28,7 +28,7 @@ def test_without_pretest(num_cells=1024, test_rounds=50):
     print("=" * 60)
     
     # Create PUF without burn-in-test
-    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_test_rounds=0)
+    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_rounds=0)
     
     print(f"Total cells: {num_cells}")
     print(f"Stable mask: {puf.stable_mask}")
@@ -82,7 +82,7 @@ def test_with_pretest(num_cells=1024, burn_in_test_rounds=10, test_rounds=50):
     print("=" * 60)
     
     # Create PUF with burn-in-test
-    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_test_rounds=burn_in_test_rounds)
+    puf = SRAM_PUF(num_cells=num_cells, ecc=None, burn_in_rounds=burn_in_test_rounds)
     
     stable_count = np.sum(puf.stable_mask) if puf.stable_mask is not None else num_cells
     unstable_count = num_cells - stable_count

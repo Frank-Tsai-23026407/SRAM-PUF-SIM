@@ -24,17 +24,47 @@ class SRAM_PUF:
                            response required for ECC.
     """
 
-    def __init__(self, num_cells, ecc=None):
+    def __init__(self, num_cells, ecc=None, pre_test_rounds=0):
         """Initializes the SRAM_PUF.
 
         Args:
             num_cells (int): The number of cells in the SRAM array.
             ecc (ECC, optional): The ECC implementation to use. If None,
                                  no ECC is used. Defaults to None.
+            pre_test_rounds (int, optional): The number of rounds to perform a
+                                             pre-test to identify unstable cells.
+                                             Defaults to 0 (disabled).
         """
         self.sram = SRAMArray(num_cells)
+        self.stable_mask = None
+
+        # Perform pre-test if requested
+        if pre_test_rounds > 0:
+            # Collect responses from multiple power-up cycles
+            responses = []
+            for _ in range(pre_test_rounds):
+                responses.append(self.sram.power_up_array(temperature=25, voltage_ratio=1.0))
+
+            responses = np.array(responses)
+            # A cell is stable if it has the same value in all rounds
+            # We check if the variance of each column is 0, or simply if all values are equal to the first row
+            # If sum of a column is 0 (all 0s) or pre_test_rounds (all 1s), it is stable.
+            col_sums = np.sum(responses, axis=0)
+            self.stable_mask = (col_sums == 0) | (col_sums == pre_test_rounds)
+
+            # Depending on the implementation, we might want to ensure we have at least some stable cells
+            if np.sum(self.stable_mask) == 0:
+                 # Fallback: if all are unstable (unlikely), use all cells or raise warning
+                 # For now, we'll leave it empty, which might cause issues downstream but is correct behavior
+                 pass
+
         # Generate the initial, "golden" response at nominal conditions
         puf_response = self.sram.power_up_array(temperature=25, voltage_ratio=1.0)
+
+        # Apply mask if it exists
+        if self.stable_mask is not None:
+            puf_response = puf_response[self.stable_mask]
+
         self.ecc = ecc
 
         if self.ecc:
@@ -63,6 +93,10 @@ class SRAM_PUF:
             voltage_ratio=voltage_ratio,
             anti_aging=anti_aging
         )
+
+        # Apply mask if it exists
+        if self.stable_mask is not None:
+            noisy_puf = noisy_puf[self.stable_mask]
 
         if self.ecc:
             return self.ecc.correct_data(noisy_puf, self.helper_data)

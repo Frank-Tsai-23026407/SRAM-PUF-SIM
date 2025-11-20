@@ -12,16 +12,17 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 
 ## Features
 
-- **SRAM Cell and Array Simulation:** Models individual SRAM cells and arrays, including the simulation of aging effects.
+- **SRAM Cell and Array Simulation:** Models individual SRAM cells and arrays, including the simulation of aging effects (NBTI, HCI).
 - **Error Correction:** Implements Hamming code and BCH code for error correction in PUF responses:
-    - **Hamming Code:** For single-bit error correction
-    - **BCH Code:** For multi-bit error correction with configurable error correction capability
+    - **Hamming Code:** For single-bit error correction.
+    - **BCH Code:** For multi-bit error correction with configurable error correction capability using `bchlib`.
 - **PUF Quality Evaluation:** Includes scripts to calculate and plot key PUF quality metrics:
     - **Uniformity:** The balance of 0s and 1s in a PUF response.
     - **Uniqueness:** The difference between responses from multiple PUF instances.
     - **Reliability:** The stability of a PUF's response over time (simulated by an aging factor).
-- **BCH Robustness Testing:** Compares different BCH configurations under various aging conditions
-- **Testing:** Comes with unit tests to verify the correctness of error correction implementations.
+- **BCH Robustness Testing:** Compares different BCH configurations under various aging conditions.
+- **Entropy Analysis:** Tools to analyze the entropy of the PUF response and the impact of ECC helper data.
+- **Comprehensive Evaluation:** A script to sweep across varying stability parameters, environmental conditions, and ECC configurations.
 
 ## Getting Started
 
@@ -31,6 +32,8 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 - NumPy
 - Matplotlib
 - bchlib (for BCH error correction)
+- pandas (for data analysis)
+- tqdm (for progress bars)
 
 ### Installation
 
@@ -56,17 +59,11 @@ SRAM-based PUFs utilize the random initial state of SRAM cells upon power-up. Ea
 This project uses the `bchlib` library for BCH error correction. Please note:
 
 - **Library Limitations:** The `bchlib` library has specific constraints:
-  - Does not support `m=4` (BCH codes with n=15 are not available)
-  - Only works with byte-aligned data (data length must be a multiple of 8 bits)
-  - Maximum data length is limited by `(n - ecc_bits) // 8` bytes
-  
-- **Actual BCH Configurations:** Due to these limitations, the actual usable data lengths differ from theoretical BCH code parameters:
-  - BCH(31, 16, t=2) - supports 16 bits (not 21 bits theoretically)
-  - BCH(31, 16, t=3) - supports 16 bits
-  - BCH(63, 48, t=2) - supports 48 bits (not 51 bits)
-  - BCH(63, 40, t=3) - supports 40 bits (not 45 bits)
-  - BCH(127, 104, t=3) - supports 104 bits (not 106 bits)
-  - BCH(127, 88, t=5) - supports 88 bits (not 92 bits)
+  - Does not support `m=4` (BCH codes with n=15 are not available).
+  - Only works with byte-aligned data (data length must be a multiple of 8 bits).
+  - Maximum data length is limited by `(n - ecc_bits) // 8` bytes.
+
+- **Actual BCH Configurations:** Due to these limitations, the actual usable data lengths differ from theoretical BCH code parameters. See `evaluation/verify_bch_robustness.py` for details.
 
 ## Usage
 
@@ -80,6 +77,16 @@ python evaluation/evaluate_puf.py
 
 This will run a series of simulations with varying aging factors and save a plot named `puf_quality_metrics.png` in the `evaluation` directory.
 
+### Running Comprehensive Evaluation
+
+To perform a detailed parameter sweep across stability, environment, and ECC types:
+
+```bash
+python evaluation/evaluate_comprehensive.py
+```
+
+This generates several plots and a CSV file (`evaluation/comprehensive_evaluation_results.csv`) detailing the results.
+
 ### Running BCH Robustness Verification
 
 To test and compare different BCH error correction configurations:
@@ -90,32 +97,42 @@ python evaluation/verify_bch_robustness.py
 
 This will test multiple BCH configurations (with different error correction capabilities) under various aging factors and generate a comparison plot saved as `bch_robustness_comparison.png`.
 
-### Running the Test
+### Entropy Analysis
 
-To verify the correctness of the Hamming ECC implementation, run the `test_puf.py` script:
+To analyze the entropy reduction caused by enabling ECC:
 
 ```bash
-python test/test_puf.py
+python evaluation/analyze_entropy.py
 ```
 
-If the test passes, you will see the message "ECC test passed!".
+### Running Tests
+
+To verify the correctness of the system, you can run the unit tests:
+
+```bash
+python test/test_cell.py
+# Add other test files as needed
+```
 
 ## Project Structure
 
 ```
 .
 ├── model/
-│   ├── cell.py              # SRAMCell class
-│   ├── sram.py              # SRAM class (array of cells)
-│   ├── sram_based_puf.py    # SRAM_PUF class
+│   ├── cell.py              # SRAMCell class (core physics model)
+│   ├── sram.py              # SRAMArray class (array of cells)
+│   ├── sram_based_puf.py    # SRAM_PUF class (PUF logic)
 │   └── ecc/
 │       └── ecc.py           # HammingECC and BCHECC classes
 ├── evaluation/
-│   ├── evaluate_puf.py      # Script to evaluate PUF quality
+│   ├── evaluate_puf.py      # Script to evaluate basic PUF quality metrics
+│   ├── evaluate_comprehensive.py # Comprehensive evaluation script
+│   ├── analyze_entropy.py   # Entropy analysis script
 │   ├── verify_bch_robustness.py  # Script to test BCH configurations
-│   └── puf_quality_metrics.png   # Example output plot
+│   └── ... (generated plots)
 ├── test/
-│   └── test_puf.py          # Unit test for the Hamming ECC
+│   ├── test_cell.py         # Unit tests for SRAMCell
+│   └── ...
 ├── requirements.txt         # Python dependencies
 └── README.md                # This file
 ```

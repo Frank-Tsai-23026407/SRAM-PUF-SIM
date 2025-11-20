@@ -2,25 +2,52 @@ import numpy as np
 from model.sram_based_puf import SRAM_PUF
 from model.ecc.ecc import HammingECC, BCHECC
 
+
 def calculate_entropy(data):
-    """Calculates the Shannon entropy of a binary array."""
+    """Calculates the Shannon entropy of a binary array.
+
+    Args:
+        data (np.ndarray): A binary array (containing 0s and 1s).
+
+    Returns:
+        float: The Shannon entropy in bits. Returns 0 if the data is uniform
+        (all 0s or all 1s).
+    """
     prob = np.sum(data) / len(data)
     if prob == 0 or prob == 1:
         return 0
     return -prob * np.log2(prob) - (1 - prob) * np.log2(1 - prob)
 
-def analyze_puf_entropy(rows, cols, ecc_class=None, **ecc_args):
-    """Analyzes the entropy of a PUF with and without ECC."""
 
+def analyze_puf_entropy(rows, cols, ecc_class=None, **ecc_args):
+    """Analyzes the entropy of a PUF with and without ECC.
+
+    This function simulates a PUF and calculates the entropy of its response.
+    If an ECC class is provided, it also calculates the effective entropy
+    after accounting for the information leakage due to the helper data.
+
+    Args:
+        rows (int): Number of rows in the SRAM array.
+        cols (int): Number of columns in the SRAM array.
+        ecc_class (class, optional): The ECC class to use (e.g., HammingECC, BCHECC).
+            Defaults to None.
+        **ecc_args: Additional keyword arguments to pass to the ECC class constructor.
+
+    Returns:
+        tuple: A tuple containing:
+            - entropy_no_ecc (float): Entropy of the raw PUF response.
+            - entropy_with_ecc (float or None): Effective entropy with ECC (if applicable).
+            - entropy_reduction (float): The reduction in entropy due to helper data (bits/cell).
+    """
     # Create a PUF without ECC to get the raw response
-    puf_no_ecc = SRAM_PUF(rows=rows, cols=cols, ecc=None)
+    puf_no_ecc = SRAM_PUF(num_cells=rows * cols, ecc=None)
     raw_response = puf_no_ecc.puf_response
     entropy_no_ecc = calculate_entropy(raw_response)
 
     # Create a PUF with the specified ECC
     if ecc_class:
         ecc_instance = ecc_class(data_len=rows * cols, **ecc_args)
-        puf_with_ecc = SRAM_PUF(rows=rows, cols=cols, ecc=ecc_instance)
+        puf_with_ecc = SRAM_PUF(num_cells=rows * cols, ecc=ecc_instance)
 
         # The helper data reduces the entropy
         if ecc_class == BCHECC:
@@ -28,9 +55,9 @@ def analyze_puf_entropy(rows, cols, ecc_class=None, **ecc_args):
         elif ecc_class == HammingECC:
             helper_data_size = len(puf_with_ecc.helper_data)
         else:
-            helper_data_size = 0 # Should not happen
+            helper_data_size = 0  # Should not happen
 
-        entropy_reduction = helper_data_size / (rows*cols)
+        entropy_reduction = helper_data_size / (rows * cols)
         entropy_with_ecc = entropy_no_ecc - entropy_reduction
     else:
         entropy_with_ecc = None

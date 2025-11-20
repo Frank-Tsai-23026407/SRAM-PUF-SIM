@@ -11,31 +11,61 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from model.sram_based_puf import SRAM_PUF
 from model.ecc.ecc import HammingECC, BCHECC
 
+
 def calculate_entropy(data):
-    """Calculates the Shannon entropy of a binary array."""
+    """Calculates the Shannon entropy of a binary array.
+
+    Args:
+        data (np.ndarray): A binary array.
+
+    Returns:
+        float: The Shannon entropy in bits.
+    """
     prob = np.sum(data) / len(data)
     if prob == 0 or prob == 1:
         return 0
     return -prob * np.log2(prob) - (1 - prob) * np.log2(1 - prob)
 
+
 def calculate_ber(golden, noisy):
-    """Calculates Bit Error Rate."""
+    """Calculates Bit Error Rate (BER).
+
+    Args:
+        golden (np.ndarray): The reference (golden) response.
+        noisy (np.ndarray): The noisy response to compare.
+
+    Returns:
+        float: The fraction of bits that differ between the two arrays.
+    """
     return np.sum(golden != noisy) / len(golden)
 
-def evaluate_configuration(config):
-    """
-    Evaluates a single configuration.
 
-    config: dict containing:
-        - stability_param
-        - voltage_ratio
-        - temperature
-        - storage_pattern
-        - ecc_type ('None', 'Hamming', 'BCH')
-        - ecc_kwargs (dict)
-        - num_cells
-        - aging_cycles (for robustness test)
-        - num_samples (for robustness test)
+def evaluate_configuration(config):
+    """Evaluates a single PUF configuration.
+
+    This function configures a PUF with the specified parameters, measures its
+    entropy, and then simulates aging and environmental noise to evaluate its
+    reliability (robustness).
+
+    Args:
+        config (dict): A dictionary containing configuration parameters:
+            - stability_param (float or None): Cell stability parameter.
+            - voltage_ratio (float): Voltage ratio for environmental test.
+            - temperature (float): Temperature for environmental test.
+            - storage_pattern (str): Storage pattern used during aging.
+            - ecc_type (str): Type of ECC ('None', 'Hamming', 'BCH').
+            - ecc_kwargs (dict): Arguments for ECC constructor.
+            - num_cells (int): Number of cells in the PUF.
+            - aging_cycles (int): Number of aging cycles to simulate.
+            - num_samples (int): Number of samples for reliability testing.
+
+    Returns:
+        dict: A dictionary containing the evaluation results:
+            - entropy_raw (float): Raw entropy of the PUF.
+            - entropy_reduction (float): Entropy loss due to ECC helper data.
+            - effective_entropy (float): Remaining entropy after ECC.
+            - reliability (float): 1 - BER.
+            - ber (float): Bit Error Rate.
     """
 
     # Unpack config
@@ -69,7 +99,7 @@ def evaluate_configuration(config):
     if ecc_instance:
         # Entropy reduction due to helper data
         if ecc_type == 'BCH':
-            helper_data_bits = len(puf.helper_data) * 8 # bytes to bits
+            helper_data_bits = len(puf.helper_data) * 8  # bytes to bits
         elif ecc_type == 'Hamming':
             helper_data_bits = len(puf.helper_data)
         else:
@@ -106,7 +136,7 @@ def evaluate_configuration(config):
     # Simulate some aging first? The prompt implies "robustness of each configuration... storage_pattern"
     # storage_pattern affects aging. So we should age the device.
     # Let's age it for a fixed number of cycles (e.g. 1000) using the specified storage_pattern.
-    aging_cycles = config.get('aging_cycles', 100) # Default 100 for speed
+    aging_cycles = config.get('aging_cycles', 100)  # Default 100 for speed
 
     # We manually age the cells because get_response updates age but we want to control the pattern
     # Actually puf.get_response(..., storage_pattern=...) updates the age.
@@ -139,11 +169,18 @@ def evaluate_configuration(config):
         'ber': ber
     }
 
+
 def main():
+    """Main function to run the comprehensive PUF evaluation.
+
+    This function iterates through various configurations of stability parameters,
+    environmental conditions, and ECC schemes. It collects the evaluation metrics
+    and generates plots summarizing the results.
+    """
     results = []
 
     # Define parameter ranges
-    stability_params = [None, 0.6, 0.7, 0.8, 0.9] # None means random distribution
+    stability_params = [None, 0.6, 0.7, 0.8, 0.9]  # None means random distribution
     voltage_ratios = [0.8, 1.0, 1.2]
     temperatures = [0, 25, 85]
     storage_patterns = ['static', 'random', 'optimized']
@@ -164,7 +201,7 @@ def main():
     default_voltage = 1.0
     default_temp = 25
     default_pattern = 'static'
-    default_ecc = {'type': 'None', 'kwargs': {}}
+    # default_ecc = {'type': 'None', 'kwargs': {}}
 
     # 1. Vary Stability
     print("Evaluating Stability variations...")

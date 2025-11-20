@@ -15,9 +15,10 @@ class SRAM_PUF:
         ecc (ECC): The ECC object used for error correction.
         helper_data (str): The helper data (codeword) generated from the
                            initial PUF response.
+        valid_mask (np.ndarray): A boolean mask indicating stable cells.
     """
 
-    def __init__(self, rows, cols, ecc=None):
+    def __init__(self, rows, cols, ecc=None, pre_test_rounds=0, pre_test_aging_factor=0.01):
         """Initializes the SRAM_PUF.
 
         Args:
@@ -25,15 +26,59 @@ class SRAM_PUF:
             cols (int): The number of columns in the SRAM array.
             ecc (ECC, optional): The ECC implementation to use. If None,
                                  no ECC is used. Defaults to None.
+            pre_test_rounds (int, optional): Number of power-up cycles to run
+                                             to identify unstable cells.
+                                             Defaults to 0 (disabled).
+            pre_test_aging_factor (float, optional): Aging factor used during
+                                                     pre-test. Defaults to 0.01.
         """
         self.sram = SRAM(rows, cols)
-        self.puf_response = self.sram.read().flatten()
+
+        # Capture the ideal response (based on initial_value)
+        raw_response = self.sram.read()
+
+        self.valid_mask = np.ones((rows, cols), dtype=bool)
+
+        if pre_test_rounds > 0:
+            self.valid_mask = self._identify_unstable_cells(pre_test_rounds, pre_test_aging_factor)
+
+        # Filter the response to include only stable cells
+        self.puf_response = raw_response.flatten()[self.valid_mask.flatten()]
+
         self.ecc = ecc
 
         if self.ecc:
-            self.helper_data = self.ecc.generate_helper_data(self.puf_response)
+            # Note: The ecc object must be compatible with the length of self.puf_response
+            # if pre-test is used.
+            try:
+                self.helper_data = self.ecc.generate_helper_data(self.puf_response)
+            except Exception as e:
+                # If ECC fails (e.g. due to length mismatch), we warn but proceed
+                print(f"Warning: ECC generation failed: {e}")
+                self.helper_data = None
         else:
             self.helper_data = None
+
+    def _identify_unstable_cells(self, rounds, aging_factor):
+        """Identifies unstable cells by powering up multiple times.
+
+        Args:
+            rounds (int): Number of rounds to test.
+            aging_factor (float): Aging factor to use.
+
+        Returns:
+            np.ndarray: A boolean mask (True for stable, False for unstable).
+        """
+        accumulated_values = np.zeros((self.sram.rows, self.sram.cols), dtype=int)
+
+        for _ in range(rounds):
+            self.sram.power_up(aging_factor)
+            accumulated_values += self.sram.read()
+
+        # A stable cell should be consistently 0 or consistently 1
+        # So sum should be 0 or 'rounds'
+        stable_mask = (accumulated_values == 0) | (accumulated_values == rounds)
+        return stable_mask
 
     def get_response(self, aging_factor=0.01):
         """Generates a PUF response, simulating aging and applying ECC.
@@ -53,7 +98,10 @@ class SRAM_PUF:
         self.sram.power_up(aging_factor)
         noisy_puf = self.sram.read().flatten()
 
-        if self.ecc:
-            return self.ecc.correct_data(noisy_puf, self.helper_data)
+        # Apply the valid mask
+        filtered_puf = noisy_puf[self.valid_mask.flatten()]
+
+        if self.ecc and self.helper_data is not None:
+            return self.ecc.correct_data(filtered_puf, self.helper_data)
         else:
-            return noisy_puf
+            return filtered_puf

@@ -1,17 +1,27 @@
 import numpy as np
 import bchlib
 
+
 class ECC:
-    """Base class for Error Correction Code implementations."""
+    """Base class for Error Correction Code implementations.
+
+    This class defines the interface for ECC schemes, requiring implementation
+    of helper data generation and data correction methods.
+    """
 
     def generate_helper_data(self, data):
         """Generates helper data for the given data.
 
         Args:
-            data (np.ndarray): The input data.
+            data (np.ndarray): The input data (e.g., a PUF response) for which
+                helper data (ECC) should be generated.
 
         Returns:
-            The helper data.
+            any: The generated helper data. The type depends on the specific
+                ECC implementation (e.g., bytes, string, etc.).
+
+        Raises:
+            NotImplementedError: This is an abstract method.
         """
         raise NotImplementedError
 
@@ -19,11 +29,16 @@ class ECC:
         """Corrects errors in the noisy data using the helper data.
 
         Args:
-            noisy_data (np.ndarray): The noisy data.
-            helper_data: The helper data.
+            noisy_data (np.ndarray): The noisy data (e.g., a noisy PUF response)
+                to be corrected.
+            helper_data (any): The helper data generated from the original
+                (golden) response.
 
         Returns:
             np.ndarray: The corrected data.
+
+        Raises:
+            NotImplementedError: This is an abstract method.
         """
         raise NotImplementedError
 
@@ -38,6 +53,7 @@ class HammingECC(ECC):
     Attributes:
         r (int): The number of redundant bits required for the given data length.
     """
+
     def __init__(self, data_len):
         """Initializes the HammingECC class.
 
@@ -60,19 +76,20 @@ class HammingECC(ECC):
         for i in range(m):
             if 2**i >= m + i + 1:
                 return i
+        return 0  # Fallback, though logically unreachable for m >= 1
 
     def _pos_redundant_bits(self, data, r):
         """Positions the redundant bits in the data string.
 
         This method inserts placeholders for the redundant bits at positions
-        that are powers of 2.
+        that are powers of 2 (1, 2, 4, 8, ...).
 
         Args:
             data (str): The data string.
             r (int): The number of redundant bits.
 
         Returns:
-            str: The data string with placeholders for redundant bits.
+            str: The data string with placeholders (0s) for redundant bits.
         """
         j = 0
         k = 1
@@ -95,7 +112,7 @@ class HammingECC(ECC):
             r (int): The number of redundant bits.
 
         Returns:
-            str: The data string with the calculated parity bits.
+            str: The data string with the calculated parity bits inserted.
         """
         n = len(arr)
         for i in range(r):
@@ -110,10 +127,10 @@ class HammingECC(ECC):
         """Generates the helper data (parity bits) for the given data.
 
         Args:
-            data (np.ndarray): The input data.
+            data (np.ndarray): The input data (array of 0s and 1s).
 
         Returns:
-            str: The parity bits.
+            str: The parity bits as a string of 0s and 1s.
         """
         data_str = "".join(map(str, data))
         arr = self._pos_redundant_bits(data_str, self.r)
@@ -148,7 +165,7 @@ class HammingECC(ECC):
             p_pos = 2**i
             p_idx = len(received_codeword_list) - p_pos
             if 0 <= p_idx < len(received_codeword_list):
-                 received_codeword_list[p_idx] = helper_data[i]
+                received_codeword_list[p_idx] = helper_data[i]
 
         received_codeword = "".join(received_codeword_list)
         error_pos = self._detect_error(received_codeword, self.r)
@@ -197,22 +214,30 @@ class HammingECC(ECC):
 
 
 class BCHECC(ECC):
-    """BCH Error Correction Code implementation."""
+    """BCH Error Correction Code implementation using the `bchlib` library.
+
+    BCH codes provide multi-bit error correction capabilities.
+    """
 
     def __init__(self, data_len, t=5, m=None):
         """Initializes the BCHECC class.
+
         Args:
             data_len (int): The length of the data string (number of bits).
-            t (int): The error correction capability in bits.
+            t (int, optional): The error correction capability in bits. Defaults to 5.
             m (int, optional): The Galois field parameter where n = 2^m - 1.
-                               If None, it will be calculated to accommodate data_len.
+                If None, it will be calculated to accommodate data_len.
+
+        Raises:
+            ValueError: If the parameters `m` and `t` are invalid for `bchlib`,
+                or if the data length exceeds the capacity of the BCH configuration.
         """
         if m is None:
             # Calculate minimum m such that 2^m - 1 >= data_len
             m = 1
-            while (2**m)-1 < data_len:
+            while (2**m) - 1 < data_len:
                 m += 1
-        
+
         # Validate BCH parameters before initialization
         try:
             self.bch = bchlib.BCH(t=t, m=m)
@@ -224,16 +249,16 @@ class BCHECC(ECC):
                 f"The bchlib library doesn't support this combination. "
                 f"Try adjusting 't' (error correction capability) or use a different data_len."
             ) from e
-        
+
         self.data_len = data_len
         self.m = m
         self.t = t
-        
+
         # Calculate maximum data bytes that bchlib can handle
         # Based on bchlib limitations: data_bytes <= (n - ecc_bits) // 8
         self.max_data_bytes = (self.bch.n - self.bch.ecc_bits) // 8
         self.data_bytes = (data_len + 7) // 8  # Round up to bytes
-        
+
         if self.data_bytes > self.max_data_bytes:
             raise ValueError(
                 f"Data length {data_len} bits ({self.data_bytes} bytes) exceeds "
@@ -242,45 +267,55 @@ class BCHECC(ECC):
             )
 
     def generate_helper_data(self, data):
-        """Generates helper data for the given data.
+        """Generates helper data (ECC bytes) for the given data.
+
         Args:
-            data (np.ndarray): The input data.
+            data (np.ndarray): The input data (array of 0s and 1s).
+
         Returns:
-            bytes: The ECC data.
+            bytes: The ECC data (helper data) required for correction.
+
+        Raises:
+            ValueError: If the input data length does not match the initialized length.
         """
         # Ensure data length matches expected
         if len(data) != self.data_len:
             raise ValueError(f"Expected {self.data_len} bits, got {len(data)} bits")
-        
+
         # Pack bits to bytes and encode
         data_bytes = np.packbits(data).tobytes()
-        
+
         # Pad to max_data_bytes if needed (bchlib may require this)
         if len(data_bytes) < self.max_data_bytes:
             data_bytes = data_bytes + b'\x00' * (self.max_data_bytes - len(data_bytes))
-        
+
         ecc = self.bch.encode(data_bytes[:self.max_data_bytes])
         return ecc
 
     def correct_data(self, noisy_data, helper_data):
         """Corrects errors in the noisy data using the helper data.
+
         Args:
-            noisy_data (np.ndarray): The noisy data.
-            helper_data (bytes): The ECC data.
+            noisy_data (np.ndarray): The noisy data (array of 0s and 1s).
+            helper_data (bytes): The ECC data (helper data).
+
         Returns:
-            np.ndarray: The corrected data.
+            np.ndarray: The corrected data as a NumPy array of integers.
+
+        Raises:
+            ValueError: If the noisy data length does not match the initialized length.
         """
         # Ensure data length matches expected
         if len(noisy_data) != self.data_len:
             raise ValueError(f"Expected {self.data_len} bits, got {len(noisy_data)} bits")
-        
+
         # Pack bits to bytes
         data_bytes = bytearray(np.packbits(noisy_data).tobytes())
-        
+
         # Pad to max_data_bytes if needed
         if len(data_bytes) < self.max_data_bytes:
             data_bytes.extend(b'\x00' * (self.max_data_bytes - len(data_bytes)))
-        
+
         # Ensure we're only using max_data_bytes for decode
         data_bytes = bytearray(data_bytes[:self.max_data_bytes])
         ecc_bytes = bytearray(helper_data)

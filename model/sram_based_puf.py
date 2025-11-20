@@ -19,9 +19,11 @@ class SRAM_PUF:
 
     Attributes:
         sram (SRAMArray): The SRAM array used for the PUF.
-        ecc (ECC): The ECC object used for error correction.
+        ecc (ECC, optional): The ECC object used for error correction.
         helper_data (any): The helper data generated from the initial PUF
-                           response required for ECC.
+                           response required for ECC. None if ECC is not used.
+        stable_mask (np.ndarray, optional): A boolean mask indicating which cells
+                                            are considered stable if pre-testing is performed.
     """
 
     def __init__(self, num_cells, ecc=None, pre_test_rounds=0, stability_param=None):
@@ -35,6 +37,7 @@ class SRAM_PUF:
                                              pre-test to identify unstable cells.
                                              Defaults to 0 (disabled).
             stability_param (float, optional): Global stability parameter for all cells.
+                                               If None, uses default random distribution.
         """
         self.sram = SRAMArray(num_cells, stability_param=stability_param)
         self.stable_mask = None
@@ -55,9 +58,9 @@ class SRAM_PUF:
 
             # Depending on the implementation, we might want to ensure we have at least some stable cells
             if np.sum(self.stable_mask) == 0:
-                 # Fallback: if all are unstable (unlikely), use all cells or raise warning
-                 # For now, we'll leave it empty, which might cause issues downstream but is correct behavior
-                 pass
+                # Fallback: if all are unstable (unlikely), use all cells or raise warning
+                # For now, we'll leave it empty, which might cause issues downstream but is correct behavior
+                pass
 
         # Generate the initial, "golden" response at nominal conditions
         puf_response = self.sram.power_up_array(temperature=25, voltage_ratio=1.0)
@@ -73,21 +76,25 @@ class SRAM_PUF:
         else:
             self.helper_data = None
 
+        # Store the initial golden response for reference (optional, but useful for debug/tests)
+        self.puf_response = puf_response
+
     def get_response(self, temperature=25, voltage_ratio=1.0, anti_aging=False, storage_pattern='static'):
-        """
-        Generates a PUF response, simulating environmental effects and applying ECC.
+        """Generates a PUF response, simulating environmental effects and applying ECC.
 
         This method powers up the SRAM under the specified conditions, reads the
         (potentially noisy) response, and then applies ECC if it is enabled.
 
         Args:
-            temperature (float): The ambient temperature in Celsius.
-            voltage_ratio (float): The supply voltage ratio relative to nominal.
-            anti_aging (bool): Whether to apply an anti-aging strategy.
+            temperature (float): The ambient temperature in Celsius. Defaults to 25.
+            voltage_ratio (float): The supply voltage ratio relative to nominal. Defaults to 1.0.
+            anti_aging (bool): Whether to apply an anti-aging strategy. Defaults to False.
             storage_pattern (str): Storage strategy - 'static', 'random', or 'optimized'.
+                Defaults to 'static'.
 
         Returns:
-            np.ndarray: The PUF response as a 1D NumPy array.
+            np.ndarray: The PUF response as a 1D NumPy array. If ECC is enabled,
+                this is the corrected response. Otherwise, it is the raw noisy response.
         """
         # Generate a new response under the given conditions
         noisy_puf = self.sram.power_up_array(

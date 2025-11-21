@@ -263,7 +263,7 @@ def main():
     print(df[df['variation_type'] == 'environment'].groupby(['voltage_ratio', 'temperature', 'ecc_str'])[['reliability']].mean())
 
     # Save detailed results
-    df.to_csv('evaluation/comprehensive_evaluation_results.csv')
+    df.to_csv('evaluation/result/comprehensive_evaluation_results.csv')
     print("\nDetailed results saved to evaluation/comprehensive_evaluation_results.csv")
 
     # --- Plotting ---
@@ -293,7 +293,7 @@ def main():
     plt.ylim(0.5, 1.05)
     plt.grid(True)
     plt.legend()
-    plt.savefig('evaluation/robustness_vs_stability.png')
+    plt.savefig('evaluation/result/robustness_vs_stability.png')
     print("Plot saved: evaluation/robustness_vs_stability.png")
 
     # 2. Entropy vs ECC
@@ -304,7 +304,7 @@ def main():
     plt.title('Effective Entropy vs ECC Configuration')
     plt.ylabel('Effective Entropy (bits/cell)')
     plt.tight_layout()
-    plt.savefig('evaluation/entropy_vs_ecc.png')
+    plt.savefig('evaluation/result/entropy_vs_ecc.png')
     print("Plot saved: evaluation/entropy_vs_ecc.png")
 
     # 3. Robustness vs Aging (Storage Pattern)
@@ -323,7 +323,7 @@ def main():
     plt.ylabel('Reliability')
     plt.grid(True)
     plt.legend()
-    plt.savefig('evaluation/robustness_vs_storage.png')
+    plt.savefig('evaluation/result/robustness_vs_storage.png')
     print("Plot saved: evaluation/robustness_vs_storage.png")
 
     # 4. Robustness vs Temperature (averaged over others)
@@ -338,7 +338,7 @@ def main():
     plt.ylabel('Reliability')
     plt.grid(True)
     plt.legend()
-    plt.savefig('evaluation/robustness_vs_temp.png')
+    plt.savefig('evaluation/result/robustness_vs_temp.png')
     print("Plot saved: evaluation/robustness_vs_temp.png")
 
 

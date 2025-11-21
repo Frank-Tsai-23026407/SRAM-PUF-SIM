@@ -233,9 +233,19 @@ class BCHECC(ECC):
                 or if the data length exceeds the capacity of the BCH configuration.
         """
         if m is None:
-            # Calculate minimum m such that 2^m - 1 >= data_len
+            # Calculate minimum m such that (2^m - 1) - (m * t) >= data_len (approx)
+            # We need to ensure bchlib can handle the data length
             m = 1
-            while (2**m) - 1 < data_len:
+            while True:
+                n = (2**m) - 1
+                ecc_bits = m * t
+                # bchlib works with bytes, so we need to ensure:
+                # (n - ecc_bits) // 8 >= (data_len + 7) // 8
+                max_data_bytes = (n - ecc_bits) // 8
+                required_bytes = (data_len + 7) // 8
+                
+                if n > ecc_bits and max_data_bytes >= required_bytes:
+                    break
                 m += 1
 
         # Validate BCH parameters before initialization

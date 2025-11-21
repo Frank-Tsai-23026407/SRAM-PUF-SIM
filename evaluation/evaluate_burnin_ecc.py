@@ -93,11 +93,28 @@ def run_experiment():
     # Initialize PUF instances
     print(f"Initializing {n_pufs} PUF instances for each of {len(config_defs)} configurations...")
     pufs_collection = {}
+    avg_lengths = {}
+
+    print("\n--- Effective PUF Length Summary ---")
+    print(f"{'Configuration':<25} | {'Avg Length':<10} | {'Retention':<10}")
+    print("-" * 50)
+
     for name, use_bi, ecc_type in config_defs:
         pufs = []
+        lengths = []
         for _ in range(n_pufs):
-            pufs.append(create_puf_instance(num_cells, use_bi, ecc_type, burn_in_rounds))
+            p = create_puf_instance(num_cells, use_bi, ecc_type, burn_in_rounds)
+            pufs.append(p)
+            lengths.append(len(p.puf_response))
+        
         pufs_collection[name] = pufs
+        avg_len = np.mean(lengths)
+        avg_lengths[name] = avg_len
+        
+        retention = (avg_len / num_cells) * 100
+        print(f"{name:<25} | {avg_len:<10.1f} | {retention:<9.1f}%")
+
+    print("-" * 50 + "\n")
 
     results_temp = {name: [] for name, _, _ in config_defs}
     results_volt = {name: [] for name, _, _ in config_defs}
@@ -137,7 +154,8 @@ def run_experiment():
 
     # Temp Plot
     for name in results_temp:
-        ax1.plot(temps, results_temp[name], marker='o', label=name)
+        label = f"{name} (L={int(avg_lengths[name])})"
+        ax1.plot(temps, results_temp[name], marker='o', label=label)
     ax1.set_title("BER vs Temperature (Voltage=1.0)")
     ax1.set_xlabel("Temperature (C)")
     ax1.set_ylabel("Bit Error Rate")
@@ -147,7 +165,8 @@ def run_experiment():
 
     # Volt Plot
     for name in results_volt:
-        ax2.plot(volts, results_volt[name], marker='s', label=name)
+        label = f"{name} (L={int(avg_lengths[name])})"
+        ax2.plot(volts, results_volt[name], marker='s', label=label)
     ax2.set_title("BER vs Voltage Ratio (Temp=25C)")
     ax2.set_xlabel("Voltage Ratio")
     ax2.set_ylabel("Bit Error Rate")
@@ -156,7 +175,7 @@ def run_experiment():
     ax2.legend()
 
     plt.tight_layout()
-    output_path = 'evaluation/burnin_ecc_comparison.png'
+    output_path = 'evaluation/result/burnin_ecc_comparison.png'
     plt.savefig(output_path)
     print(f"Plot saved to {output_path}")
 

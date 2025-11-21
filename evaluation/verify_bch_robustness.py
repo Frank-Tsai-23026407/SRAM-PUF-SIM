@@ -170,7 +170,7 @@ def plot_results(results, aging_factors):
     plt.tight_layout()
 
     # Save the plot
-    output_path = os.path.join(os.path.dirname(__file__), 'ecc_robustness_comparison.png')
+    output_path = os.path.join(os.path.dirname(__file__), 'result', 'ecc_robustness_comparison.png')
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"\nPlot saved to {output_path}")
     plt.show()

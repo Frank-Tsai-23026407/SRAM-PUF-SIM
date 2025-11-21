@@ -161,7 +161,7 @@ def main():
     plt.ylim(0, 110)
 
     # Save the plot
-    output_path = 'evaluation/puf_quality_metrics.png'
+    output_path = 'evaluation/result/puf_quality_metrics.png'
     plt.savefig(output_path)
     print(f"\\nPlot saved to {output_path}")
 

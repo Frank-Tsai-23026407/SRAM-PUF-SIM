@@ -25,6 +25,10 @@ class SRAM_PUF:
         self.sram = SRAMArray(num_cells, stability_param=stability_param)
         self.stable_mask = None
 
+        # Enrollment phase: generate golden response at nominal conditions
+        # We generate this FIRST to check consistency during burn-in
+        puf_response = self.sram.power_up_array(temperature=25, voltage_ratio=1.0)
+
         # burn in phase (also known as characterization or burn-in testing)
         if burn_in_rounds > 0:
             responses = []
@@ -39,11 +43,20 @@ class SRAM_PUF:
 
             responses = np.array(responses)
             col_sums = np.sum(responses, axis=0)
-            self.stable_mask = (col_sums == 0) | (col_sums == burn_in_rounds)
-
-        # Enrollment phase: generate golden response at nominal conditions
-        puf_response = self.sram.power_up_array(temperature=25, voltage_ratio=1.0)
-
+            
+            # Check 1: Stability at stress (must be all 0s or all 1s)
+            stable_at_stress = (col_sums == 0) | (col_sums == burn_in_rounds)
+            
+            # Check 2: Consistency with nominal (Value at stress == Value at nominal)
+            # If col_sums == 0, value is 0. Must match puf_response == 0.
+            # If col_sums == rounds, value is 1. Must match puf_response == 1.
+            # We can check this by comparing the "average" response at stress with nominal
+            # Since we only keep stable ones, average is exactly 0 or 1.
+            stress_values = (col_sums == burn_in_rounds).astype(int)
+            consistent_with_nominal = (stress_values == puf_response)
+            
+            self.stable_mask = stable_at_stress & consistent_with_nominal
+        
         if self.stable_mask is not None:
             puf_response = puf_response[self.stable_mask]
 

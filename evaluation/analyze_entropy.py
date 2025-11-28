@@ -1,4 +1,9 @@
 import numpy as np
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from model.sram_based_puf import SRAM_PUF
 from model.ecc.ecc import HammingECC, BCHECC
 

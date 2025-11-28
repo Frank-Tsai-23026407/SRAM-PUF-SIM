@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from car_puf.car_puf import CarPUF
+from model.car_puf import CarPUF
 from model.ecc.ecc import BCHECC
 
 def calculate_shannon_entropy(data):

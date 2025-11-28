@@ -5,7 +5,7 @@ import numpy as np
 # Add project root to path to allow absolute imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from car_puf.car_puf import CarPUF
+from model.car_puf import CarPUF
 
 def main():
     print("=== Automotive SRAM PUF Demo ===\n")
